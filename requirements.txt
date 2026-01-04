@@ -1,0 +1,8 @@
+kafka-python==2.0.2
+pyspark==3.5.0
+delta-spark==3.0.0
+streamlit
+duckdb
+pydantic
+requests
+pytest
