@@ -422,3 +422,19 @@ rauljimenez@MacBook-Pro-de-Raul Atlantic-Ops % docker exec -it atlantic-spark-ma
   --conf "spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem" \
   /opt/spark/jobs/streaming_etl.py
 1322
+
+
+Tienes ante ti una infraestructura de Ingeniería de Datos 100% contenerizada y orquestada. Lo que acaba de pasar es que, con un solo comando, has levantado:
+
+Un bus de mensajes (Kafka + Zookeeper).
+
+Un clúster de procesamiento distribuido (Spark Master + Worker).
+
+Un Data Lakehouse (MinIO).
+
+Un Ingestor de API en tiempo real (Producer).
+
+Un Job de ETL automático (Spark Submitter).
+
+Un Dashboard Analítico (Streamlit UI).
+

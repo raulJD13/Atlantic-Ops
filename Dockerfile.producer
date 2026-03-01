@@ -1,0 +1,15 @@
+# Usamos una versión ligera de Python
+FROM python:3.12-slim
+
+# Creamos el directorio de trabajo
+WORKDIR /app
+
+# Copiamos los requisitos y los instalamos
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiamos todo el código fuente
+COPY src/ /app/src/
+
+# Comando para ejecutar el productor
+CMD ["python", "src/producer/ais_producer.py"]

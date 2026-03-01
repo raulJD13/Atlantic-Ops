@@ -1,5 +1,6 @@
 import logging
 import sys
+import time
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col, current_timestamp
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, IntegerType
@@ -32,7 +33,6 @@ def create_spark_session():
     spark.sparkContext.setLogLevel("WARN")
     return spark
 
-# Constantes del Puerto de La Luz
 PORT_LAT_MIN = 28.10
 PORT_LAT_MAX = 28.18
 PORT_LON_MIN = -15.45
@@ -43,11 +43,14 @@ def main():
     logger.info("ATLANTIC-OPS: MARITIME STREAMING PIPELINE")
     logger.info("=" * 60)
     
-    spark = create_spark_session()
-    logger.info("Spark Session Iniciada")
-    logger.info("Configuracion Geofence: Puerto de La Luz (Las Palmas)")
+    # 🛑 MAGIA ANTI-CRASH: Obligamos a Spark a esperar 20 segundos a que Kafka despierte
+    # y el Productor cree el Topic antes de intentar leer.
+    logger.info("⏳ Esperando 20 segundos a que Kafka y Producer se inicialicen...")
+    time.sleep(20)
     
-    # Esquema de datos
+    spark = create_spark_session()
+    logger.info("✅ Spark Session Iniciada")
+    
     schema = StructType([
         StructField("mmsi", IntegerType()),
         StructField("ship_name", StringType()),
@@ -59,21 +62,20 @@ def main():
         StructField("timestamp", StringType())
     ])
 
-    # Leer de Kafka
+    # Leer de Kafka con tolerancias
     df_kafka = spark.readStream \
         .format("kafka") \
         .option("kafka.bootstrap.servers", "kafka:29092") \
         .option("subscribe", "vessel_positions") \
         .option("startingOffsets", "earliest") \
         .option("maxOffsetsPerTrigger", 200) \
+        .option("failOnDataLoss", "false") \
         .load()
 
-    # Parsing y Seleccion inicial
     df_parsed = df_kafka.select(
         from_json(col("value").cast("string"), schema).alias("data")
     ).select("data.*")
 
-    # Filtrado de datos invalidos
     df_clean = df_parsed.filter(
         (col("lat").isNotNull()) & 
         (col("lon").isNotNull()) & 
@@ -81,8 +83,6 @@ def main():
         (col("lon") != 0)
     )
 
-    # Transformacion Optimizada (Nativa Spark)
-    # Se elimina la UDF de Python y se usan expresiones de columna
     df_processed = df_clean.withColumn(
         "in_port", 
         (col("lat") >= PORT_LAT_MIN) & 
@@ -91,7 +91,6 @@ def main():
         (col("lon") <= PORT_LON_MAX)
     ).withColumn("ingestion_time", current_timestamp())
 
-    # Escribir a Delta Lake
     query = df_processed.writeStream \
         .format("delta") \
         .outputMode("append") \
@@ -100,24 +99,13 @@ def main():
         .trigger(processingTime='10 seconds') \
         .start()
 
-    logger.info("=" * 60)
-    logger.info("PIPELINE ACTIVO")
-    logger.info("Destino: s3a://lakehouse/vessel_data_v2")
-    logger.info("Estado: Procesando streams...")
-    logger.info("Presiona Ctrl+C para detener el pipeline")
-    logger.info("=" * 60)
+    logger.info("PIPELINE ACTIVO - Destino: s3a://lakehouse/vessel_data_v2")
     
     try:
         query.awaitTermination()
     except KeyboardInterrupt:
-        logger.info("")
-        logger.info("=" * 60)
-        logger.info("SENAL DE INTERRUPCION RECIBIDA")
-        logger.info("Deteniendo pipeline de forma segura...")
         query.stop()
         spark.stop()
-        logger.info("Pipeline detenido correctamente")
-        logger.info("=" * 60)
 
 if __name__ == "__main__":
     main()

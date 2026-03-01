@@ -81,6 +81,67 @@ services:
     networks:
       - atlantic-network
 
+  # ==========================================
+  # NUEVOS SERVICIOS DOCKERIZADOS
+  # ==========================================
+
+  # --- 1. PRODUCER (Ingestión de API) ---
+  producer:
+    build:
+      context: .
+      dockerfile: Dockerfile.producer
+    container_name: atlantic-producer
+    env_file:
+      - .env  # Lee tu API Key desde el .env local
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092 # Forzamos uso de red interna
+    depends_on:
+      - kafka
+    networks:
+      - atlantic-network
+
+  # --- 2. SPARK SUBMIT (ETL Automático) ---
+  spark-submitter:
+    image: apache/spark:3.5.3-python3
+    container_name: atlantic-spark-submitter
+    user: root
+    volumes:
+      - ./src/spark-jobs:/opt/spark/jobs
+    command: >
+      /opt/spark/bin/spark-submit
+      --master spark://spark-master:7077
+      --deploy-mode client
+      --driver-memory 512M
+      --executor-memory 512M
+      --conf "spark.executor.memoryOverhead=256M"
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.0.0,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262
+      --conf "spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension"
+      --conf "spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog"
+      --conf "spark.hadoop.fs.s3a.path.style.access=true"
+      --conf "spark.hadoop.fs.s3a.connection.ssl.enabled=false"
+      --conf "spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem"
+      /opt/spark/jobs/streaming_etl.py
+    depends_on:
+      - spark-worker
+      - minio
+      - kafka
+    networks:
+      - atlantic-network
+
+  # --- 3. STREAMLIT APP (Frontend) ---
+  streamlit-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    container_name: atlantic-ui
+    ports:
+      - "8501:8501" # Puerto para acceder desde tu navegador
+    depends_on:
+      - minio
+      - spark-submitter
+    networks:
+      - atlantic-network
+
 networks:
   atlantic-network:
     driver: bridge
