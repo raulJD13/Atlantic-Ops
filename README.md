@@ -1,90 +1,62 @@
-data engineer?
-1. EL PROYECTO: "Atlantic-Ops Lakehouse"
-Visión: Vamos a construir una plataforma de datos en tiempo real para la logística marítima. No es solo "ver barcos", es un sistema de ingestión y analítica capaz de detectar eventos operativos (como un barco entrando en zona de carga) y guardar histórico fiable.
-Valor para tu CV: Demostrarás que sabes manejar el ciclo de vida completo del dato: desde que se genera (API/Sensor) hasta que aporta valor (Dashboard), pasando por un almacenamiento robusto (Lakehouse).
-2. EL STACK TECNOLÓGICO "PRO" (Gratuito & Open Source)
-Para que sea profesional, añadiremos capas de Calidad y Operaciones al stack original.
-A. Infraestructura & Orquestación
-* Docker & Docker Compose: Para encapsular todo el entorno. "Infrastructure as Code" local.
-* GitHub: Control de versiones.
-* GitHub Actions: (El toque PRO) Para CI/CD. Cada vez que hagas `push`, se ejecutarán tests automáticos y linter. Esto enamora a los reclutadores.
-B. Capa de Ingestión (Streaming)
-* Python 3.12: Con librerías modernas (`pydantic` para validación de datos estricta).
-* Apache Kafka: El estándar de la industria para desacoplar productores de consumidores.
-C. Capa de Procesamiento & Storage (Lakehouse)
-* Apache Spark (Structured Streaming): El motor de procesamiento distribuido.
-* Delta Lake: Formato de almacenamiento. Aporta transacciones ACID (fiabilidad) sobre archivos Parquet. Es lo que diferencia un Data Lake (pantano de archivos) de un Lakehouse (gestión seria).
-* MinIO: Servidor de almacenamiento de objetos compatible con S3. Simulará la nube (AWS S3) en tu local.
-D. Capa de Consumo (Serving Layer)
-* DuckDB: Aquí mi recomendación de experto. Usar Spark para alimentar el dashboard en tiempo real es muy pesado. Usaremos DuckDB para que Streamlit lea los datos Delta desde MinIO de forma ultra-rápida. Es una tecnología muy "hot" ahora mismo.
-* Streamlit: Para la visualización interactiva (Mapas y KPIs).
-3. ROADMAP DE IMPLEMENTACIÓN (Fases del Proyecto)
-No vamos a escribir código a lo loco. Vamos a trabajar por "Sprints".
-🏁 FASE 0: Setup Profesional & DevOps (Cimientos)
-* Configurar repositorio GitHub.
-* Estructura de carpetas estándar (tipo `cookiecutter` para Data Science/Engineering).
-* Configurar Pre-commit hooks (para que no puedas subir código mal formateado).
-* Configurar el `docker-compose.yml` base (Infraestructura).
-📡 FASE 1: Ingestión Robusta (Producer)
-* Desarrollo del script Python que consulta la API de barcos.
-* Implementación de Pydantic para validar que los datos vienen bien antes de enviarlos.
-* Envío de mensajes JSON al topic de Kafka `vessel-positions`.
-* Extra Pro: Gestión de errores y logs (si la API falla, que no explote el programa).
-⚙️ FASE 2: Procesamiento Streaming (Spark & Delta)
-* Configuración de Spark para conectarse a Kafka y MinIO.
-* Lógica de ETL: Limpieza de datos y casteos de tipos.
-* Lógica de Negocio: Geofencing. (¿Está el barco dentro del polígono del puerto? True/False).
-* Escritura en Delta Lake (particionado por fecha).
-📊 FASE 3: Serving & Visualización
-* Conexión de DuckDB con MinIO/Delta Lake.
-* Creación del Dashboard en Streamlit:
-   * Mapa en tiempo real.
-   * Gráficos de "Barcos por hora".
-   * Alertas de entrada en puerto.
-🚀 FASE 4: Automatización & CI/CD (El "Wow" factor)
-* Crear tests unitarios con `pytest` (probar la lógica sin levantar todo el sistema).
-* Crear pipeline en GitHub Actions: "Build & Test".
-* Documentación final (`README.md` técnico impecable).
+# Atlantic-Ops Lakehouse
 
-## Modelo de Datos: VesselPosition
+> Real-time Maritime Logistics Intelligence Platform
+> Streaming ingestion → Lakehouse storage (Delta) → Fast serving (DuckDB) → Interactive dashboard (Streamlit)
 
-### Fuente
-Datos obtenidos de [API específica o AIS feeds]
+![Real-Time](https://img.shields.io/badge/Real--Time-Streaming-blue) ![Kafka](https://img.shields.io/badge/Kafka-Event%20Bus-black) ![Spark](https://img.shields.io/badge/Spark-Structured%20Streaming-orange) ![Delta](https://img.shields.io/badge/Delta-Lakehouse-purple) ![MinIO](https://img.shields.io/badge/MinIO-S3%20Local-red) ![DuckDB](https://img.shields.io/badge/DuckDB-Serving-yellow) ![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-ff4b4b)
 
-### Campos obligatorios
-- `mmsi`: Identificador único de 9 dígitos (estándar IMO)
-- `ship_name`: Nombre de la embarcación
-- `lat`, `lon`: Coordenadas WGS84
-- `speed`: Velocidad en nudos
-- `heading`: Rumbo verdadero en grados
+---
 
-### Reglas de negocio
-1. Coordenadas válidas: lat [-90, 90], lon [-180, 180]
-2. MMSI debe estar en rango [100000000, 999999999]
-3. Speed máxima: 102.2 nudos (límite físico AIS)
-4. Todos los timestamps en UTC
+## What is this?
 
-### Ejemplo JSON
-```json
-{
-  "mmsi": 123456789,
-  "ship_name": "ATLANTIC VOYAGER",
-  "lat": 36.1234,
-  "lon": -5.3567,
-  "speed": 12.5,
-  "heading": 45.0,
-  "status": "Under way using engine",
-  "timestamp": "2025-01-04T10:30:00Z"
-}
+**Atlantic-Ops Lakehouse** is an end-to-end **data engineering** platform focused on **maritime operations**.
+
+This is not only about “tracking vessels on a map”: the goal is to **ingest vessel positions in real time**, **validate them**, **detect operational events** (e.g., a vessel entering a port area via **geofencing**) and **store a reliable historical record** with ACID guarantees on top of a data lake.
+
+What this demonstrates on a CV:
+
+* Streaming architecture (Kafka + Spark Structured Streaming)
+* Data contracts and strict validation (Pydantic)
+* A proper Lakehouse (Delta Lake) over S3-like object storage (MinIO)
+* Efficient serving for analytics/BI (DuckDB)
+* Interactive dashboard (Streamlit)
+* Professional DevOps: Docker, CI/CD, tests, linting
+
+---
+
+## Architecture
+
+### Data flow (high level)
+
+```
+┌──────────────┐     ┌───────────┐     ┌──────────────────────┐
+│  AIS / API    │ --> │  Producer  │ --> │   Kafka (vessel-*)   │
+└──────────────┘     └───────────┘     └───────────┬──────────┘
+                                                    │
+                                                    ▼
+                                           ┌──────────────────┐
+                                           │ Spark Streaming    │
+                                           │  + ETL + Geofence  │
+                                           └─────────┬─────────┘
+                                                     │
+                                                     ▼
+                                            ┌──────────────────┐
+                                            │ Delta Lake (ACID) │
+                                            │  on MinIO (S3)    │
+                                            └─────────┬─────────┘
+                                                     │
+                                                     ▼
+                                          ┌────────────────────┐
+                                          │ DuckDB Serving Layer│
+                                          └─────────┬──────────┘
+                                                    │
+                                                    ▼
+                                          ┌────────────────────┐
+                                          │ Streamlit Dashboard │
+                                          └────────────────────┘
 ```
 
-# Atlantic-Ops Dashboard - Technical Documentation
-
-## 🎯 Overview
-
-Dashboard de visualización en tiempo real para el sistema Atlantic-Ops Maritime Intelligence Platform. Construido con arquitectura modular, siguiendo principios SOLID y mejores prácticas de ingeniería de software.
-
-## 🏗️ Arquitectura del Dashboard
+### Dashboard layering
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -115,326 +87,350 @@ Dashboard de visualización en tiempo real para el sistema Atlantic-Ops Maritime
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 🔑 Características Clave
+---
 
-### 1. **Arquitectura en Capas**
-- **Presentation Layer**: Componentes UI (Streamlit, PyDeck, Plotly)
-- **Business Layer**: Lógica de análisis y procesamiento
-- **Data Layer**: Gestión de conexiones y queries
-- **Storage Layer**: Delta Lake como fuente de verdad
+## Tech stack
 
-### 2. **Gestión de Estado**
-- Actualización automática configurable (1-10 segundos)
-- Placeholders estáticos para evitar re-renderizado completo
-- Cache de conexiones con DuckDB
+### Infra and DevOps
 
-### 3. **Visualizaciones Avanzadas**
+* Docker / Docker Compose (local Infrastructure as Code)
+* GitHub + GitHub Actions (CI/CD: tests, lint, build)
+* Pre-commit hooks (quality gates before commits)
 
-#### Mapa Interactivo (PyDeck)
-- **Capas múltiples**: Geofence + Vessels
-- **Tooltip HTML personalizado** con información detallada
-- **Colores dinámicos**: Verde (en puerto), Rojo (navegando)
-- **Tamaño variable**: Basado en velocidad del vessel
+### Ingestion (streaming)
 
-#### Gráficos Analíticos (Plotly)
-- **Distribución de velocidades**: Histograma interactivo
-- **Timeline de tráfico**: Evolución últimas 24h
-- **Estado operacional**: Pie chart con estados AIS
+* Python 3.12
+* Pydantic (strict validation and data contracts)
+* Apache Kafka (event bus)
 
-### 4. **Sistema de Alertas**
-- Velocidad alta configurable
-- Detección de datos obsoletos (staleness)
-- Visualización mediante boxes coloreados
+### Processing and storage (lakehouse)
 
-### 5. **Filtros Avanzados**
-- Por zona portuaria
-- Por velocidad mínima
-- Calidad de datos (freshness)
+* Apache Spark 3.5+ (Structured Streaming)
+* Delta Lake 3.x (ACID over Parquet)
+* MinIO (local S3-compatible object storage)
 
-## 📊 Métricas y KPIs
+### Serving and visualization
 
-| Métrica | Descripción | Cálculo |
-|---------|-------------|---------|
-| **Total Vessels** | Número único de embarcaciones | `COUNT(DISTINCT ship_name)` |
-| **In Port** | Vessels en zona portuaria | `SUM(CASE WHEN in_port THEN 1)` |
-| **Moving** | Vessels en movimiento | `COUNT(WHERE speed > 0.5)` |
-| **Avg Speed** | Velocidad media de la flota | `AVG(speed)` |
-| **Data Quality** | % datos frescos (<60s) | `(fresh_count / total) * 100` |
-
-## 🛠️ Componentes Técnicos
-
-### DataManager Class
-```python
-class DataManager:
-    """
-    Gestiona conexiones a DuckDB y queries al Lakehouse.
-    
-    Responsabilidades:
-    - Lazy loading de conexión DuckDB
-    - Configuración S3/MinIO
-    - Queries optimizadas con Window Functions
-    - Manejo de errores y logging
-    """
-```
-
-**Métodos principales:**
-- `load_latest_vessels()`: Query con `ROW_NUMBER()` para última posición
-- `load_historical_traffic()`: Agregación temporal para timeline
-- `_create_connection()`: Setup de DuckDB con extensión httpfs
-
-### VesselAnalyzer Class
-```python
-class VesselAnalyzer:
-    """
-    Lógica de análisis y enriquecimiento de datos.
-    
-    Transformaciones:
-    - Cálculo de distancia Haversine al puerto
-    - Clasificación por velocidad
-    - Asignación de colores para visualización
-    - Data quality scoring
-    """
-```
-
-**Métodos principales:**
-- `enrich_dataframe()`: Añade columnas calculadas
-- `get_metrics()`: Agrega KPIs
-- `_calculate_distance()`: Fórmula Haversine vectorizada
-
-### MapBuilder Class
-```python
-class MapBuilder:
-    """
-    Constructor de mapas PyDeck con múltiples capas.
-    
-    Capas:
-    1. PolygonLayer: Geofence del puerto
-    2. ScatterplotLayer: Posiciones de vessels
-    """
-```
-
-### ChartsBuilder Class
-```python
-class ChartsBuilder:
-    """
-    Generador de gráficos Plotly.
-    
-    Gráficos:
-    - Speed Distribution (Histogram)
-    - Traffic Timeline (Line chart)
-    - Status Pie (Donut chart)
-    """
-```
-
-## 🎨 Sistema de Estilos
-
-### Paleta de Colores
-```css
-Background: #0a0e27 → #1a1d35 (gradient)
-Cards: #1e293b → #334155 (gradient)
-Borders: #475569
-Text Primary: #e2e8f0
-Text Secondary: #94a3b8
-Accent Blue: #3b82f6
-Success Green: #22c55e
-Warning Orange: #f59e0b
-Error Red: #ef4444
-```
-
-### Alertas
-- **Success**: Verde (#064e3b)
-- **Warning**: Naranja (#78350f)
-- **Error**: Rojo (#7f1d1d)
-- **Info**: Azul (#1e3a8a)
-
-## 🚀 Optimizaciones de Rendimiento
-
-### 1. Query Optimization
-```sql
--- Uso de Window Functions en lugar de subqueries
-WITH ranked_vessels AS (
-    SELECT *, ROW_NUMBER() OVER (
-        PARTITION BY ship_name 
-        ORDER BY timestamp DESC
-    ) as rn
-)
-SELECT * FROM ranked_vessels WHERE rn = 1
-```
-
-### 2. Incremental Updates
-- Solo re-renderiza contenedores que cambiaron
-- Placeholders estáticos evitan full page reload
-
-### 3. Data Freshness
-- Filtro de datos obsoletos antes de visualizar
-- Indicador visual de calidad de datos
-
-### 4. Connection Pooling
-- Conexión DuckDB reutilizada (lazy loading)
-- Cache de configuración S3
-
-## 📝 Logging Strategy
-
-```python
-logger.info("📊 Cargados X vessels")    # Operaciones normales
-logger.warning("⚠️ No hay datos...")    # Situaciones recuperables
-logger.error("❌ Error cargando...")    # Errores con stack trace
-```
-
-Niveles:
-- **INFO**: Flujo normal de la aplicación
-- **WARNING**: Situaciones anómalas pero manejables
-- **ERROR**: Errores que requieren atención
-
-## 🔧 Configuración
-
-Todas las constantes en clase `Config`:
-
-```python
-@dataclass
-class Config:
-    # Lakehouse
-    S3_ENDPOINT: str = "localhost:9000"
-    S3_BUCKET: str = "lakehouse"
-    
-    # Geofencing
-    PORT_LAT_MIN: float = 28.10
-    PORT_LAT_MAX: float = 28.18
-    
-    # Performance
-    DATA_STALENESS_THRESHOLD: int = 60
-    CACHE_TTL: int = 300
-```
-
-## 📦 Dependencias
-
-```txt
-streamlit>=1.28.0
-duckdb>=0.9.0
-pandas>=2.0.0
-pydeck>=0.8.0
-plotly>=5.17.0
-```
-
-## 🎯 Ejecución
-
-```bash
-# Desde el directorio raíz del proyecto
-streamlit run src/dashboard/app.py
-
-# Con configuración custom
-streamlit run src/dashboard/app.py --server.port 8501 --server.address 0.0.0.0
-```
-
-## 🧪 Testing Recommendations
-
-### Unit Tests
-```python
-def test_vessel_analyzer_enrichment():
-    """Test de enriquecimiento de dataframe"""
-    df = pd.DataFrame({...})
-    enriched = VesselAnalyzer.enrich_dataframe(df, config)
-    assert 'distance_to_port' in enriched.columns
-
-def test_data_manager_query():
-    """Test de query a DuckDB"""
-    dm = DataManager(config)
-    df = dm.load_latest_vessels()
-    assert not df.empty
-```
-
-### Integration Tests
-- Mock de conexión S3/MinIO
-- Verificar renders sin errores
-- Validar cálculos de métricas
-
-## 🚨 Troubleshooting
-
-### Problema: "No hay datos disponibles"
-**Causa**: Pipeline no está generando datos
-**Solución**:
-1. Verificar producer: `docker logs producer`
-2. Verificar Kafka: `kafka-console-consumer --topic vessel_positions`
-3. Verificar Spark: `docker logs spark-streaming`
-4. Verificar MinIO: Navegar a `localhost:9000` → bucket `lakehouse`
-
-### Problema: Dashboard lento
-**Causa**: Demasiados datos en query
-**Solución**:
-1. Reducir ventana temporal en query histórico
-2. Aumentar intervalo de refresh
-3. Limitar número de rows en tabla
-
-### Problema: Conexión S3 falla
-**Causa**: Credenciales o endpoint incorrectos
-**Solución**:
-1. Verificar variables en `Config`
-2. Probar conexión manual: `mc ls minio/lakehouse`
-
-## 📈 Métricas de Calidad del Código
-
-- **Modularidad**: 5 clases especializadas
-- **Separación de concerns**: 3 capas distintas
-- **Testabilidad**: Inyección de dependencias via `Config`
-- **Mantenibilidad**: Docstrings en todas las funciones
-- **Escalabilidad**: Queries optimizadas, lazy loading
-
-## 🎓 Conceptos Avanzados Utilizados
-
-1. **Dataclasses**: Para configuración type-safe
-2. **Property decorators**: Lazy loading de conexiones
-3. **Context managers**: (implícito en Streamlit containers)
-4. **Type hints**: En todos los métodos
-5. **Window Functions SQL**: Para queries eficientes
-6. **Vectorización Pandas**: En cálculos de distancia
-
-## 🏆 Mejores Prácticas Aplicadas
-
-✅ Configuración centralizada  
-✅ Logging estructurado  
-✅ Manejo de errores robusto  
-✅ Separación de concerns  
-✅ Código autodocumentado  
-✅ Performance optimizado  
-✅ UI responsive  
+* DuckDB (fast queries over Delta/Parquet via S3)
+* Streamlit + PyDeck + Plotly (UI, maps, charts)
 
 ---
 
-**Autor**: Raul Jimenez  
-**Versión**: 2.0  
-**Stack**: Streamlit + DuckDB + Delta Lake + PyDeck + Plotly  
-**Licencia**: MIT
+## Key features
 
+* End-to-end streaming: positions → Kafka → Spark → Delta
+* Data quality by design: Pydantic validation + business rules
+* Real lakehouse: schema enforcement, time travel (Delta), reliable history
+* Geofencing: port-area entry/exit detection
+* Lightweight serving: DuckDB powers the dashboard without overloading Spark
+* Dashboard: real-time map, KPIs, alerts
+* Basic observability: structured logging and robust error handling
 
-rauljimenez@MacBook-Pro-de-Raul Atlantic-Ops % docker exec -it atlantic-spark-master /opt/spark/bin/spark-submit \
+---
+
+## Repository structure (suggested)
+
+This may differ slightly in your repo, but this is a solid “cookiecutter-style” reference.
+
+```
+.
+├── docker-compose.yml
+├── .env.example
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+├── src/
+│   ├── producer/
+│   │   ├── main.py
+│   │   ├── models.py          # Pydantic data contracts
+│   │   └── settings.py
+│   ├── streaming/
+│   │   └── streaming_etl.py   # Spark Structured Streaming job
+│   └── dashboard/
+│       ├── app.py             # Streamlit entrypoint
+│       ├── data_manager.py
+│       ├── vessel_analyzer.py
+│       ├── map_builder.py
+│       └── charts_builder.py
+├── tests/
+│   ├── test_models.py
+│   ├── test_geofence.py
+│   └── test_queries.py
+└── README.md
+```
+
+---
+
+## Quickstart
+
+### 1) Prerequisites
+
+* Docker + Docker Compose
+* (Optional) `make`
+* Python 3.12 for local development (if running modules outside Docker)
+
+### 2) Configure environment
+
+Copy the example and adjust credentials/endpoints as needed.
+
+```bash
+cp .env.example .env
+```
+
+### 3) Start the platform
+
+```bash
+docker compose up -d --build
+```
+
+### 4) Verify services
+
+```bash
+docker compose ps
+
+docker compose logs -f producer
+```
+
+Typical endpoints (may vary depending on `docker-compose.yml`):
+
+* Streamlit: `http://localhost:8501`
+* MinIO Console: `http://localhost:9001`
+* Spark UI (master): `http://localhost:8080`
+
+### 5) Run the Spark streaming job (example)
+
+If you run the job manually from the Spark master container (as in your setup):
+
+```bash
+docker exec -it atlantic-spark-master \
+  /opt/spark/bin/spark-submit \
   --master spark://spark-master:7077 \
   --deploy-mode client \
-  --driver-memory 512M \
-  --executor-memory 512M \
-  --conf "spark.executor.memoryOverhead=256M" \
-  --conf "spark.network.timeout=10000000" \
   --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.0.0,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262 \
-  --conf "spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension" \
-  --conf "spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog" \
-  --conf "spark.delta.logStore.class=org.apache.spark.sql.delta.storage.S3SingleDriverLogStore" \
-  --conf "spark.hadoop.fs.s3a.path.style.access=true" \
-  --conf "spark.hadoop.fs.s3a.connection.ssl.enabled=false" \
-  --conf "spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem" \
   /opt/spark/jobs/streaming_etl.py
-1322
+```
 
+### 6) Stop everything
 
-Tienes ante ti una infraestructura de Ingeniería de Datos 100% contenerizada y orquestada. Lo que acaba de pasar es que, con un solo comando, has levantado:
+```bash
+docker compose down -v
+```
 
-Un bus de mensajes (Kafka + Zookeeper).
+---
 
-Un clúster de procesamiento distribuido (Spark Master + Worker).
+## Data contract: `VesselPosition`
 
-Un Data Lakehouse (MinIO).
+### Required fields
 
-Un Ingestor de API en tiempo real (Producer).
+* `mmsi`: unique 9-digit identifier
+* `ship_name`: vessel name
+* `lat`, `lon`: WGS84 coordinates
+* `speed`: knots
+* `heading`: degrees
 
-Un Job de ETL automático (Spark Submitter).
+### Business rules
 
-Un Dashboard Analítico (Streamlit UI).
+1. `lat` in [-90, 90] and `lon` in [-180, 180]
+2. `mmsi` in [100000000, 999999999]
+3. `speed` <= 102.2 (physical AIS limit)
+4. `timestamp` always in UTC
 
+### Example payload
+
+```json
+{
+  "mmsi": 123456789,
+  "ship_name": "ATLANTIC VOYAGER",
+  "lat": 36.1234,
+  "lon": -5.3567,
+  "speed": 12.5,
+  "heading": 45.0,
+  "status": "Under way using engine",
+  "timestamp": "2025-01-04T10:30:00Z"
+}
+```
+
+---
+
+## Streaming ETL (Spark + Delta)
+
+### What the job does
+
+* Consumes JSON events from Kafka (topic `vessel-positions`)
+* Cleans/casts types and normalizes timestamps
+* Enriches with business logic: geofencing (`in_port` flag)
+* Writes to Delta Lake in MinIO
+* Recommended partitioning: `date = to_date(timestamp)`
+
+### Why Delta Lake
+
+A data lake without transactions tends to become a messy collection of files. Delta provides:
+
+* ACID guarantees and consistency
+* Schema enforcement and schema evolution
+* Time travel and auditing
+* Safe upsert/merge operations (if needed)
+
+---
+
+## Serving layer (DuckDB)
+
+Spark is excellent for processing, but it is not ideal to power an interactive dashboard directly.
+
+DuckDB enables:
+
+* Connecting to S3/MinIO (via `httpfs`)
+* Reading Delta/Parquet tables and aggregating quickly
+* Using SQL window functions for “latest position per vessel” queries
+
+Example strategy (latest row per `ship_name`):
+
+```sql
+WITH ranked AS (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (PARTITION BY ship_name ORDER BY timestamp DESC) AS rn
+  FROM vessel_positions
+)
+SELECT *
+FROM ranked
+WHERE rn = 1;
+```
+
+---
+
+## Dashboard (Streamlit)
+
+### Capabilities
+
+* Interactive real-time map (PyDeck): vessels + port geofence polygon
+* KPIs: total vessels, in_port, moving, avg_speed, data_quality
+* Alerts: high speed, stale data (staleness)
+* Filters: by zone, speed, data quality
+
+### KPI catalog
+
+| Metric        | Description              | Computation                         |
+| ------------- | ------------------------ | ----------------------------------- |
+| Total Vessels | Unique vessels           | `COUNT(DISTINCT ship_name)`         |
+| In Port       | Vessels inside port zone | `SUM(CASE WHEN in_port THEN 1 END)` |
+| Moving        | Vessels moving           | `COUNT(WHERE speed > 0.5)`          |
+| Avg Speed     | Fleet average speed      | `AVG(speed)`                        |
+| Data Quality  | Fresh data percentage    | `(fresh / total) * 100`             |
+
+---
+
+## Testing and quality
+
+### Unit tests (pytest)
+
+* Model validation (Pydantic)
+* Geofencing (inside/outside/edge cases)
+* DuckDB queries (small fixtures)
+
+```bash
+pytest -q
+```
+
+### Lint and formatting (recommended)
+
+* `ruff` + `black` + `mypy` (optional)
+* Pre-commit to run checks automatically
+
+---
+
+## CI/CD (GitHub Actions)
+
+Typical pipeline on `push`:
+
+* Install dependencies
+* Lint and format checks
+* Run unit tests
+* Build (if applicable)
+
+This is a strong signal of engineering discipline when someone reviews the repository.
+
+---
+
+## Troubleshooting
+
+### “No data available” on the dashboard
+
+1. Producer is running:
+
+   ```bash
+   docker compose logs -f producer
+   ```
+2. Kafka receives messages (if you have a CLI): consume the topic
+3. Spark job is running and healthy:
+
+   ```bash
+   docker compose logs -f spark-master
+   ```
+4. MinIO bucket contains objects (check via MinIO Console)
+
+### Dashboard is slow
+
+* Reduce historical window
+* Increase refresh interval
+* Limit row counts in tables
+
+### S3/MinIO connection errors
+
+* Check endpoint and credentials in `.env` / `Config`
+* Ensure MinIO is reachable from DuckDB/Spark inside the Docker network
+
+---
+
+## Roadmap
+
+* Phase 0: Professional setup and DevOps
+
+  * repo structure, pre-commit, docker-compose base
+* Phase 1: Robust ingestion
+
+  * producer, Pydantic, logging
+* Phase 2: Streaming ETL
+
+  * Structured Streaming, geofencing, Delta partitioning
+* Phase 3: Serving and visualization
+
+  * DuckDB, Streamlit, metrics
+* Phase 4: Automation and CI/CD
+
+  * pytest, GitHub Actions, final documentation
+
+---
+
+## Contributing
+
+1. Fork the repo
+2. Create a branch: `git checkout -b feat/new-feature`
+3. Run tests/lint before opening a PR
+4. Open a Pull Request with a clear description and screenshots if applicable
+
+---
+
+## License
+
+MIT.
+
+---
+
+## Author
+
+Raul Jimenez
+Contact: `rauljimenez@MacBook-Pro-de-Raul` (update with a real email before publishing)
+
+---
+
+## Note
+
+With a single command you can spin up a complete, containerized data platform:
+
+* Kafka (event bus)
+* Spark (distributed processing)
+* MinIO (S3-compatible lakehouse storage)
+* Producer (real-time ingestion)
+* Streaming ETL job
+* Analytics dashboard
