@@ -1,8 +1,13 @@
-kafka-python==2.0.2
+kafka-python-ng==2.2.2
 pyspark==3.5.0
+websockets
+asyncio
 delta-spark==3.0.0
 streamlit
 duckdb
 pydantic
 requests
 pytest
+python-dotenv
+plotly
+
