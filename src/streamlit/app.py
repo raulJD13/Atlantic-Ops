@@ -119,10 +119,10 @@ def render_dashboard(df, show_geofence):
         port = len(df[df['in_port']==True])
         max_spd = df['speed'].max()
         
-        k1.metric("🚢 Flota Total", total, delta="Online")
-        k2.metric("💨 En Movimiento", moving, delta=f"{int(moving/total*100)}%")
-        k3.metric("⚓ En Puerto", port)
-        k4.metric("🚀 Vel. Máxima", f"{max_spd:.1f} kn")
+        k1.metric("Flota Total", total, delta="Online")
+        k2.metric("En Movimiento", moving, delta=f"{int(moving/total*100)}%")
+        k3.metric("En Puerto", port)
+        k4.metric("Vel. Máxima", f"{max_spd:.1f} kn")
 
     # --- FILA 2: MAPA ---
     st.markdown("### 🗺️ Situación Táctica")
