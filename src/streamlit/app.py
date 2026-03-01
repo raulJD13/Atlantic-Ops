@@ -1,4 +1,3 @@
-# src/streamlit/app.py
 from __future__ import annotations
 
 import math
@@ -6,7 +5,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
-
+import os
 import duckdb
 import numpy as np
 import pandas as pd
@@ -15,20 +14,22 @@ import pydeck as pdk
 import streamlit as st
 
 
-# -----------------------------
+
 # 0) CONFIG
-# -----------------------------
 @dataclass(frozen=True)
 class Config:
     APP_TITLE: str = "Atlantic-Ops: Maritime Control Tower"
     PAGE_ICON: str = "⚓"
 
-    # Data source
-    PARQUET_GLOB: str = "s3://lakehouse/vessel_data_v2/*.parquet"
+    # Detectamos si estamos en Streamlit Cloud
+    IS_CLOUD: bool = os.getenv("IS_CLOUD") == "true"
+
+    # Data source (Ruta Híbrida: Local vs Nube)
+    PARQUET_GLOB: str = "demo_data/fleet_snapshot.parquet" if IS_CLOUD else "s3://lakehouse/vessel_data_v2/*.parquet"
 
     # MinIO/DuckDB httpfs
     S3_REGION: str = "us-east-1"
-    S3_ENDPOINT: str = "minio:9000"  # docker network name (no localhost)
+    S3_ENDPOINT: str = "minio:9000"
     S3_ACCESS_KEY: str = "atlantic_admin"
     S3_SECRET_KEY: str = "atlantic_password"
     S3_USE_SSL: bool = False
@@ -37,7 +38,6 @@ class Config:
     # Port (Las Palmas - Puerto de La Luz)
     PORT_CENTER_LAT: float = 28.14
     PORT_CENTER_LON: float = -15.42
-    # Simple geofence polygon (lon,lat)
     PORT_POLYGON: Tuple[Tuple[float, float], ...] = (
         (-15.45, 28.10),
         (-15.39, 28.10),
@@ -51,7 +51,6 @@ class Config:
 
     # Cache
     CACHE_TTL_SEC: int = 10
-
 
 CFG = Config()
 
@@ -202,6 +201,11 @@ def enrich_df(df: pd.DataFrame) -> pd.DataFrame:
 def get_db_connection() -> Optional[duckdb.DuckDBPyConnection]:
     try:
         con = duckdb.connect(database=":memory:")
+        
+        # Si estamos en la nube, leemos del archivo local y NO cargamos S3
+        if CFG.IS_CLOUD:
+            return con
+            
         con.execute("INSTALL httpfs;")
         con.execute("LOAD httpfs;")
         con.execute(f"SET s3_region='{CFG.S3_REGION}';")
@@ -212,7 +216,7 @@ def get_db_connection() -> Optional[duckdb.DuckDBPyConnection]:
         con.execute(f"SET s3_url_style='{CFG.S3_URL_STYLE}';")
         return con
     except Exception as e:
-        st.error(f"❌ Fallo inicializando DuckDB (httpfs/S3): {e}")
+        st.error(f" Fallo inicializando DuckDB (httpfs/S3): {e}")
         return None
 
 
@@ -255,15 +259,21 @@ def load_traffic_timeseries(hours: int = 24, bucket_minutes: int = 10) -> pd.Dat
 
     # DuckDB: date_bin exists in newer versions; use epoch math for compatibility
     # Create bucket timestamp by flooring to bucket_minutes.
+    # Truco "Time Travel": Calculamos el histórico basándonos en el timestamp más reciente del dataset
+    # Así el dashboard funciona perfecto en la nube aunque los datos tengan días de antigüedad.
     query = f"""
-    WITH base AS (
+    WITH max_time AS (
+      SELECT MAX(timestamp) as max_ts FROM read_parquet('{CFG.PARQUET_GLOB}')
+    ),
+    base AS (
       SELECT
         ship_name,
         in_port,
         speed,
         timestamp
       FROM read_parquet('{CFG.PARQUET_GLOB}')
-      WHERE timestamp >= (NOW() - INTERVAL '{hours} hours')
+      CROSS JOIN max_time
+      WHERE timestamp >= (max_time.max_ts - INTERVAL '{hours} hours')
     ),
     binned AS (
       SELECT
