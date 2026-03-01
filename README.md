@@ -420,8 +420,8 @@ MIT.
 ## Author
 
 Raul Jimenez
-Contact: `rauljimenez@MacBook-Pro-de-Raul` (update with a real email before publishing)
-
+Contact: `raul.jimenez.del@gmail.com` 
+linkedin: https://www.linkedin.com/in/rauljimenezdelgado/
 ---
 
 ## Note
